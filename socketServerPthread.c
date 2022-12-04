@@ -11,14 +11,26 @@
 #include<arpa/inet.h> //inet_addr
 #include<unistd.h>    //write
 #include<pthread.h> //for threading , link with lpthread
+#include <string.h>
+#include <postgresql/libpq-fe.h>
+#include <sys/time.h>
+
+struct arg_struct {
+    int client_sock;
+    PGconn * dbConn;
+};
  
 //the thread function
-void *connection_handler(void *);
+void *connection_handler(void *args);
+PGconn *dbConnection();
+void executeQuery(PGconn *conn, char * query);
  
 int main(int argc , char *argv[])
 {
     int socket_desc , client_sock , c;
     struct sockaddr_in server , client;
+    PGconn *dbConn = NULL; 
+    struct arg_struct args;
      
     //Create socket
     socket_desc = socket(AF_INET , SOCK_STREAM , 0);
@@ -32,6 +44,9 @@ int main(int argc , char *argv[])
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
     server.sin_port = htons( 8080);
+    
+    //instauro la connessione al db
+    args.dbConn =  dbConnection();
      
     //Bind
     if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
@@ -55,11 +70,11 @@ int main(int argc , char *argv[])
     c = sizeof(struct sockaddr_in);
 	pthread_t thread_id;
 	
-    while( (client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c)) )
+    while( (args.client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c)) )
     {
         puts("Connection accepted");
          
-        if( pthread_create( &thread_id , NULL ,  connection_handler , (void*) &client_sock) < 0)
+        if(pthread_create( &thread_id , NULL ,  connection_handler , (void*) &args) != 0)
         {
             perror("could not create thread");
             return 1;
@@ -82,10 +97,11 @@ int main(int argc , char *argv[])
 /*
  * This will handle connection for each client
  * */
-void *connection_handler(void *socket_desc)
+void *connection_handler(void *arguments)
 {
+    struct arg_struct *args = arguments; 
     //Get the socket descriptor
-    int sock = *(int*)socket_desc;
+    int sock = args->client_sock;
     int read_size;
     char *message , client_message[2000];
      
@@ -99,12 +115,13 @@ void *connection_handler(void *socket_desc)
     //Receive a message from client
     while( (read_size = recv(sock , client_message , 2000 * sizeof(char) , 0)) > 0 )
     {
-		printf("messaggio dal client: %s\n", client_message);
+		
         //end of string marker
 		client_message[read_size] = '\0';
-		
-		//Send the message back to client
-        write(sock , client_message , strlen(client_message));
+
+        printf("messaggio dal client: %s\n", client_message);
+
+        executeQuery(args->dbConn, client_message);
 		
 		//clear the message buffer
 		memset(client_message, 0, 2000);
@@ -123,3 +140,38 @@ void *connection_handler(void *socket_desc)
     close(sock);
     return 0;
 } 
+
+PGconn *dbConnection() {
+
+    printf("sono qui\n");
+   PGconn *conn;
+
+   char *stringConn = "host=projectpotholes.postgres.database.azure.com dbname=postgres port=5432 user=adminpotholes password=potholes2.";
+   
+   conn = PQconnectdb(stringConn);                
+    
+   if(PQstatus(conn) == CONNECTION_BAD) {
+      printf("unable to connect\n");
+      conn = NULL;
+   }
+   else{
+      printf("connesso al db\n"); 
+   }
+
+   return conn;
+
+}
+
+void executeQuery(PGconn *conn, char * query) {
+
+    PGresult *res;
+    char * status;
+    
+    printf("la query: %s\n", query);
+   
+    res = PQexec(conn, query);
+
+    status = PQresStatus(PQresultStatus(res));
+    
+    printf("%s\n", status);
+}
