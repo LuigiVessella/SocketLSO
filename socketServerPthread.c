@@ -23,8 +23,9 @@ struct arg_struct {
 //the thread function
 void *connection_handler(void *args);
 PGconn *dbConnection();
-void executeQuery(PGconn *conn, char * query);
- 
+void executeQuery(PGconn *conn, char * user);
+void checkUserDb(PGconn *conn, char * user);
+
 int main(int argc , char *argv[])
 {
     int socket_desc , client_sock , c;
@@ -121,7 +122,7 @@ void *connection_handler(void *arguments)
 
         printf("messaggio dal client: %s\n", client_message);
 
-        executeQuery(args->dbConn, client_message);
+        checkUserDb(args->dbConn, client_message);
 		
 		//clear the message buffer
 		memset(client_message, 0, 2000);
@@ -161,12 +162,42 @@ PGconn *dbConnection() {
    return conn;
 
 }
+void checkUserDb(PGconn *conn, char * user) {
+    PGresult *res;
+    char * query_pt1 = "select 1 from utente where nome = '";
+    char * query_pt2 = "'";
+    char * query = (char *)malloc(1 + strlen(query_pt1) + strlen(user) + strlen(query_pt2));
 
-void executeQuery(PGconn *conn, char * query) {
+    strcpy(query, query_pt1);
+    strcat(query, user);
+    strcat(query, query_pt2);
+
+    printf("query: %s\n", query);
+    
+    res = PQexec(conn, query);
+    
+    int rows = PQntuples(res);
+    if(rows > 0 ) {
+        printf("utente esiste\n");
+        return;
+    }
+    else {
+        printf("utente non presente\n");
+        executeQuery(conn, user);
+    }
+}
+
+void executeQuery(PGconn *conn, char * user) {
 
     PGresult *res;
     char * status;
-    
+    char * query_pt1 = "insert into utente(nome)values('";
+    char * query_pt2 = "')";
+    char * query = (char *)malloc(1 + strlen(query_pt1) + strlen(user) + strlen(query_pt2));
+
+    strcpy(query, query_pt1);
+    strcat(query, user);
+    strcat(query, query_pt2);
     printf("la query: %s\n", query);
    
     res = PQexec(conn, query);
