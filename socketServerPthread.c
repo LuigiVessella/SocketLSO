@@ -25,6 +25,7 @@ void *connection_handler(void *args);
 PGconn *dbConnection();
 void executeQuery(PGconn *conn, char * user);
 void checkUserDb(PGconn *conn, char * user);
+void executePhotolesQuery(PGconn * conn, char * query);
 
 int main(int argc , char *argv[])
 {
@@ -44,7 +45,7 @@ int main(int argc , char *argv[])
     //Prepare the sockaddr_in structure
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons( 8080);
+    server.sin_port = htons(8080);
     
     //instauro la connessione al db
     args.dbConn =  dbConnection();
@@ -114,13 +115,13 @@ void *connection_handler(void *arguments)
     write(sock , message , strlen(message));
      
     //Receive a message from client
-    while( (read_size = recv(sock , client_message , 2000 * sizeof(char) , 0)) > 0 )
+    while( (read_size = recv(sock , client_message , 3000 * sizeof(char) , 0)) > 0 )
     {
 		
         //end of string marker
 		client_message[read_size] = '\0';
 
-        printf("messaggio dal client: %s\n", client_message);
+        //printf("messaggio dal client: %s\n", client_message);
 
         checkUserDb(args->dbConn, client_message);
 		
@@ -163,27 +164,33 @@ PGconn *dbConnection() {
 
 }
 void checkUserDb(PGconn *conn, char * user) {
-    PGresult *res;
-    char * query_pt1 = "select 1 from utente where nome = '";
-    char * query_pt2 = "'";
-    char * query = (char *)malloc(1 + strlen(query_pt1) + strlen(user) + strlen(query_pt2));
-
-    strcpy(query, query_pt1);
-    strcat(query, user);
-    strcat(query, query_pt2);
-
-    printf("query: %s\n", query);
-    
-    res = PQexec(conn, query);
-    
-    int rows = PQntuples(res);
-    if(rows > 0 ) {
-        printf("utente esiste\n");
-        return;
+    if(strlen(user) > 10 ) {
+        printf("si tratta della query per la buca");
+        executePhotolesQuery(conn, user);
     }
     else {
-        printf("utente non presente\n");
-        executeQuery(conn, user);
+        PGresult *res;
+        char * query_pt1 = "select 1 from utente where nome = '";
+        char * query_pt2 = "'";
+        char * query = (char *)malloc(1 + strlen(query_pt1) + strlen(user) + strlen(query_pt2));
+
+        strcpy(query, query_pt1);
+        strcat(query, user);
+        strcat(query, query_pt2);
+
+        printf("query: %s\n", query);
+        
+        res = PQexec(conn, query);
+        
+        int rows = PQntuples(res);
+        if(rows > 0 ) {
+            printf("utente esiste\n");
+            return;
+        }
+        else {
+            printf("utente non presente\n");
+            executeQuery(conn, user);
+        }
     }
 }
 
@@ -205,4 +212,15 @@ void executeQuery(PGconn *conn, char * user) {
     status = PQresStatus(PQresultStatus(res));
     
     printf("%s\n", status);
+}
+
+void executePhotolesQuery(PGconn * conn, char * query){
+
+    printf("\nla query ricevuta: %s\n", query);
+    PGresult *res;
+    char * status;
+    res = PQexec(conn, query);
+    status = PQresStatus(PQresultStatus(res));
+    printf("%s\n", status);
+
 }
