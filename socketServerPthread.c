@@ -108,13 +108,6 @@ void *connection_handler(void *arguments)
     int read_size;
     char *message , client_message[2000];
      
-    //Send some messages to the client
-    message = "Greetings! I am your connection handler\n";
-    write(sock, message , strlen(message));
-     
-    message = "Now type something and i shall repeat what you type \n";
-    write(sock, message , strlen(message));
-     
     //Receive a message from client
     while( (read_size = recv(sock, client_message , 3000 * sizeof(char) , 0)) > 0 )
     {
@@ -128,7 +121,7 @@ void *connection_handler(void *arguments)
         if(strstr(client_message, "select")) {
             printf("si tratta della select");
             char * resultRecords = executeSelectPhotolesQuery(args->dbConn, client_message);
-            printf("ho ricevuto: \n%s\n", resultRecords);
+            //printf("ho ricevuto: \n%s\n", resultRecords);
             send(sock , resultRecords , strlen(resultRecords), MSG_CONFIRM);
             write(sock, "\n", strlen("\n"));
     
@@ -158,7 +151,7 @@ void *connection_handler(void *arguments)
 
 PGconn *dbConnection() {
 
-    printf("sono qui\n");
+    printf("dbConnection invoked\n");
     PGconn *conn;
 
    char *stringConn = "host=projectpotholes.postgres.database.azure.com dbname=postgres port=5432 user=adminpotholes password=potholes2.";
@@ -177,9 +170,9 @@ PGconn *dbConnection() {
 
 }
 void checkUserDb(PGconn *conn, char * user) { 
+    printf("checkUser invoked\n");
    
     if(strlen(user) > 10 ) {
-        printf("si tratta della query per la buca");
         executePhotolesQuery(conn, user);
     }
 
@@ -211,7 +204,7 @@ void checkUserDb(PGconn *conn, char * user) {
 }
 
 void executeQuery(PGconn *conn, char * user) {
-
+    printf("executeUserInsert invoked\n");
     PGresult *res;
     char * status;
     char * query_pt1 = "insert into utente(nome)values('";
@@ -221,7 +214,7 @@ void executeQuery(PGconn *conn, char * user) {
     strcpy(query, query_pt1);
     strcat(query, user);
     strcat(query, query_pt2);
-    printf("la query: %s\n", query);
+    //printf("la query: %s\n", query);
    
     res = PQexec(conn, query);
 
@@ -232,7 +225,7 @@ void executeQuery(PGconn *conn, char * user) {
 
 void executePhotolesQuery(PGconn * conn, char * query){
 
-    printf("\nla query ricevuta: %s\n", query);
+    printf("executeBucaInsert invoked\n");
     PGresult *res;
     char * status;
     res = PQexec(conn, query);
@@ -243,7 +236,7 @@ void executePhotolesQuery(PGconn * conn, char * query){
 
 char * executeSelectPhotolesQuery(PGconn * conn, char * query) {
 
-    printf("\nla query ricevuta:\n%s", query);
+    printf("selectBuche invoked\n");
 
     PGresult *res;
     char * status;
@@ -263,7 +256,7 @@ char * executeSelectPhotolesQuery(PGconn * conn, char * query) {
         }
    
     }
-    printf("la dimensione: %d\n", dimension);
+   
 
     char * resultRecords = (char *) malloc(50 + dimension);
     
