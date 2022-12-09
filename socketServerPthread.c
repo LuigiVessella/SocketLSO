@@ -26,6 +26,7 @@ PGconn *dbConnection();
 void executeQuery(PGconn *conn, char * user);
 void checkUserDb(PGconn *conn, char * user);
 void executePhotolesQuery(PGconn * conn, char * query);
+char * executeSelectPhotolesQuery(PGconn * conn, char * query);
 
 int main(int argc , char *argv[])
 {
@@ -109,35 +110,47 @@ void *connection_handler(void *arguments)
      
     //Send some messages to the client
     message = "Greetings! I am your connection handler\n";
-    write(sock , message , strlen(message));
+    write(sock, message , strlen(message));
      
     message = "Now type something and i shall repeat what you type \n";
-    write(sock , message , strlen(message));
+    write(sock, message , strlen(message));
      
     //Receive a message from client
-    while( (read_size = recv(sock , client_message , 3000 * sizeof(char) , 0)) > 0 )
+    while( (read_size = recv(sock, client_message , 3000 * sizeof(char) , 0)) > 0 )
     {
 		
         //end of string marker
 		client_message[read_size] = '\0';
 
-        //printf("messaggio dal client: %s\n", client_message);
 
         checkUserDb(args->dbConn, client_message);
+
+        if(strstr(client_message, "select")) {
+            printf("si tratta della select");
+            char * resultRecords = executeSelectPhotolesQuery(args->dbConn, client_message);
+            printf("ho ricevuto: \n%s\n", resultRecords);
+            send(sock , resultRecords , strlen(resultRecords), MSG_CONFIRM);
+            send(sock, "", 0, 0);
+    
+        }
 		
 		//clear the message buffer
 		memset(client_message, 0, 2000);
     }
      
+    
+    
     if(read_size == 0)
     {
         puts("Client disconnected");
         fflush(stdout);
     }
+
     else if(read_size == -1)
     {
         perror("recv failed");
     }
+    
     // Client closed socket so clean up
     close(sock);
     return 0;
@@ -146,7 +159,7 @@ void *connection_handler(void *arguments)
 PGconn *dbConnection() {
 
     printf("sono qui\n");
-   PGconn *conn;
+    PGconn *conn;
 
    char *stringConn = "host=projectpotholes.postgres.database.azure.com dbname=postgres port=5432 user=adminpotholes password=potholes2.";
    
@@ -163,11 +176,13 @@ PGconn *dbConnection() {
    return conn;
 
 }
-void checkUserDb(PGconn *conn, char * user) {
+void checkUserDb(PGconn *conn, char * user) { 
+   
     if(strlen(user) > 10 ) {
         printf("si tratta della query per la buca");
         executePhotolesQuery(conn, user);
     }
+
     else {
         PGresult *res;
         char * query_pt1 = "select 1 from utente where nome = '";
@@ -185,13 +200,14 @@ void checkUserDb(PGconn *conn, char * user) {
         int rows = PQntuples(res);
         if(rows > 0 ) {
             printf("utente esiste\n");
-            return;
+            
         }
         else {
             printf("utente non presente\n");
             executeQuery(conn, user);
         }
     }
+    
 }
 
 void executeQuery(PGconn *conn, char * user) {
@@ -223,4 +239,42 @@ void executePhotolesQuery(PGconn * conn, char * query){
     status = PQresStatus(PQresultStatus(res));
     printf("%s\n", status);
 
+}
+
+char * executeSelectPhotolesQuery(PGconn * conn, char * query) {
+
+    printf("\nla query ricevuta:\n%s", query);
+
+    PGresult *res;
+    char * status;
+    int col, row;
+
+    int dimension = 0;
+
+    res = PQexec(conn, query);
+    status = PQresStatus(PQresultStatus(res));
+    printf("%s\n", status);
+
+    int res_count = PQntuples(res);
+    printf("ho %d records\n", res_count);
+    for(row = 0; row<res_count; row++) {
+        for(col = 0; col < 5; col++) {
+            dimension = dimension + strlen(PQgetvalue(res, row,col));
+        }
+   
+    }
+    printf("la dimensione: %d\n", dimension);
+
+    char * resultRecords = (char *) malloc(50 + dimension);
+    
+    for(row = 0; row<res_count; row++) {
+        for(col = 0; col < 5; col++) {
+            strcat(resultRecords, PQgetvalue(res, row,col));
+            
+        }
+       strcat(resultRecords, "\n");
+    }
+
+   
+    return resultRecords;
 }
