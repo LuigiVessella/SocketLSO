@@ -130,7 +130,7 @@ void *connection_handler(void *arguments)
             char * resultRecords = executeSelectPhotolesQuery(args->dbConn, client_message);
             printf("ho ricevuto: \n%s\n", resultRecords);
             send(sock , resultRecords , strlen(resultRecords), MSG_CONFIRM);
-            send(sock, "", 0, 0);
+            write(sock, "\n", strlen("\n"));
     
         }
 		
