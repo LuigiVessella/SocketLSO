@@ -1,9 +1,7 @@
 /*
-    C socket server example, handles multiple clients using threads
     Compile
     gcc server.c -lpthread -o server
 */
- 
 #include<stdio.h>
 #include<string.h>    //strlen
 #include<stdlib.h>    //strlen
@@ -55,42 +53,38 @@ int main(int argc , char *argv[])
     if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
     {
         //print the error message
-        perror("bind failed. Error");
+        perror("bind fallito. Errore");
         return 1;
     }
-    puts("bind done");
+    puts("bind ok");
      
     //Listen
     listen(socket_desc , 3);
      
     //Accept and incoming connection
-    puts("Waiting for incoming connections...");
+    puts("Attendo connessioni...");
     c = sizeof(struct sockaddr_in);
      
-     
-    //Accept and incoming connection
-    puts("Waiting for incoming connections...");
-    c = sizeof(struct sockaddr_in);
 	pthread_t thread_id;
 	
     while( (args.client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c)) )
     {
-        puts("Connection accepted");
+        puts("Connessione accettata");
          
-        if(pthread_create( &thread_id , NULL ,  connection_handler , (void*) &args) != 0)
+        if(pthread_create(&thread_id, NULL, connection_handler, (void*) &args) != 0)
         {
-            perror("could not create thread");
+            perror("Non sono riuscito a creare il thread");
             return 1;
         }
          
         //Now join the thread , so that we dont terminate before the thread
         //pthread_join( thread_id , NULL);
-        puts("Handler assigned");
+        puts("Handler assegnato");
     }
      
     if (client_sock < 0)
     {
-        perror("accept failed");
+        perror("problema accetta");
         return 1;
     }
      
@@ -119,7 +113,7 @@ void *connection_handler(void *arguments)
         checkUserDb(args->dbConn, client_message);
 
         if(strstr(client_message, "select")) {
-            printf("si tratta della select");
+            printf("query select ivocata");
             char * resultRecords = executeSelectPhotolesQuery(args->dbConn, client_message);
             //printf("ho ricevuto: \n%s\n", resultRecords);
             send(sock , resultRecords , strlen(resultRecords), MSG_CONFIRM);
@@ -131,17 +125,15 @@ void *connection_handler(void *arguments)
 		memset(client_message, 0, 2000);
     }
      
-    
-    
     if(read_size == 0)
     {
-        puts("Client disconnected");
+        puts("Client disconnesso");
         fflush(stdout);
     }
 
     else if(read_size == -1)
     {
-        perror("recv failed");
+        perror("recv fallita");
     }
     
     // Client closed socket so clean up
@@ -159,7 +151,7 @@ PGconn *dbConnection() {
    conn = PQconnectdb(stringConn);                
     
    if(PQstatus(conn) == CONNECTION_BAD) {
-      printf("unable to connect\n");
+      printf("impossibile connettersi al db\n");
       conn = NULL;
    }
    else{
@@ -170,7 +162,7 @@ PGconn *dbConnection() {
 
 }
 void checkUserDb(PGconn *conn, char * user) { 
-    printf("checkUser invoked\n");
+    printf("verifico l'utente nel db\n");
    
     if(strlen(user) > 10 ) {
         executePhotolesQuery(conn, user);
@@ -186,17 +178,17 @@ void checkUserDb(PGconn *conn, char * user) {
         strcat(query, user);
         strcat(query, query_pt2);
 
-        printf("query: %s\n", query);
+        //printf("query: %s\n", query);
         
         res = PQexec(conn, query);
         
         int rows = PQntuples(res);
         if(rows > 0 ) {
-            printf("utente esiste\n");
+            printf("utente esiste, ok\n");
             
         }
         else {
-            printf("utente non presente\n");
+            printf("utente non presente, lo inserisco\n");
             executeQuery(conn, user);
         }
     }
@@ -204,7 +196,7 @@ void checkUserDb(PGconn *conn, char * user) {
 }
 
 void executeQuery(PGconn *conn, char * user) {
-    printf("executeUserInsert invoked\n");
+    
     PGresult *res;
     char * status;
     char * query_pt1 = "insert into utente(nome)values('";
@@ -225,7 +217,7 @@ void executeQuery(PGconn *conn, char * user) {
 
 void executePhotolesQuery(PGconn * conn, char * query){
 
-    printf("executeBucaInsert invoked\n");
+    printf("---funzione inserimento buca invocata---\n");
     PGresult *res;
     char * status;
     res = PQexec(conn, query);
@@ -236,7 +228,7 @@ void executePhotolesQuery(PGconn * conn, char * query){
 
 char * executeSelectPhotolesQuery(PGconn * conn, char * query) {
 
-    printf("selectBuche invoked\n");
+    printf("---funzione seleziona buche invocata---\n");
 
     PGresult *res;
     char * status;
@@ -249,7 +241,7 @@ char * executeSelectPhotolesQuery(PGconn * conn, char * query) {
     printf("%s\n", status);
 
     int res_count = PQntuples(res);
-    printf("ho %d records\n", res_count);
+    printf("ho estratto %d records, li invio\n", res_count);
     for(row = 0; row<res_count; row++) {
         for(col = 0; col < 5; col++) {
             dimension = dimension + strlen(PQgetvalue(res, row,col));
